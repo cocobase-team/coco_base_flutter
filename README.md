@@ -334,7 +334,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - 📧 Email: support@cocobase.com
 - 📚 Documentation: [docs.cocobase.com](https://docs.cocobase.com)
-- 🐛 Issues: [GitHub Issues](https://github.com/your-repo/cocobase-dart/issues)
+- 🐛 Issues: [GitHub Issues](https://github.com/lordace-coder/coco_base_flutter/issues)
 - 💬 Discord: [Join our community](https://discord.gg/cocobase)
 
 ## Changelog

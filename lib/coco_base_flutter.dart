@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // Types
 class CocobaseConfig {
   final String apiKey;
-  
+
   CocobaseConfig({required this.apiKey});
 }
 
@@ -16,7 +16,7 @@ class Document<T> {
   final T data;
   final DateTime createdAt;
   final DateTime updatedAt;
-  
+
   Document({
     required this.id,
     required this.collection,
@@ -24,7 +24,7 @@ class Document<T> {
     required this.createdAt,
     required this.updatedAt,
   });
-  
+
   factory Document.fromJson(Map<String, dynamic> json) {
     return Document<T>(
       id: json['id'],
@@ -39,9 +39,9 @@ class Document<T> {
 class TokenResponse {
   final String accessToken;
   final String tokenType;
-  
+
   TokenResponse({required this.accessToken, required this.tokenType});
-  
+
   factory TokenResponse.fromJson(Map<String, dynamic> json) {
     return TokenResponse(
       accessToken: json['access_token'],
@@ -56,7 +56,7 @@ class AppUser {
   final Map<String, dynamic>? data;
   final DateTime createdAt;
   final DateTime updatedAt;
-  
+
   AppUser({
     required this.id,
     required this.email,
@@ -64,7 +64,7 @@ class AppUser {
     required this.createdAt,
     required this.updatedAt,
   });
-  
+
   factory AppUser.fromJson(Map<String, dynamic> json) {
     return AppUser(
       id: json['id'],
@@ -74,7 +74,7 @@ class AppUser {
       updatedAt: DateTime.parse(json['updated_at']),
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -91,7 +91,7 @@ class Query {
   final String? orderBy;
   final int? limit;
   final int? offset;
-  
+
   Query({this.where, this.orderBy, this.limit, this.offset});
 }
 
@@ -100,7 +100,7 @@ class Connection {
   final String name;
   bool closed;
   final Function() close;
-  
+
   Connection({
     required this.socket,
     required this.name,
@@ -114,27 +114,27 @@ const String BASEURL = 'https://api.cocobase.com';
 
 String buildFilterQuery(Query? query) {
   if (query == null) return '';
-  
+
   List<String> params = [];
-  
+
   if (query.where != null) {
     query.where!.forEach((key, value) {
       params.add('$key=${Uri.encodeComponent(value.toString())}');
     });
   }
-  
+
   if (query.orderBy != null) {
     params.add('orderBy=${Uri.encodeComponent(query.orderBy!)}');
   }
-  
+
   if (query.limit != null) {
     params.add('limit=${query.limit}');
   }
-  
+
   if (query.offset != null) {
     params.add('offset=${query.offset}');
   }
-  
+
   return params.join('&');
 }
 
@@ -148,7 +148,10 @@ Future<void> setToLocalStorage(String key, String value) async {
   await prefs.setString(key, value);
 }
 
-Map<String, dynamic> mergeUserData(Map<String, dynamic> existing, Map<String, dynamic> updates) {
+Map<String, dynamic> mergeUserData(
+  Map<String, dynamic> existing,
+  Map<String, dynamic> updates,
+) {
   final merged = Map<String, dynamic>.from(existing);
   updates.forEach((key, value) {
     merged[key] = value;
@@ -163,29 +166,31 @@ class Cocobase {
   String? _token;
   AppUser? user;
   late final Dio _dio;
-  
-  Cocobase(CocobaseConfig config) 
-    : baseURL = BASEURL,
-      apiKey = config.apiKey {
-    _dio = Dio(BaseOptions(
-      baseUrl: baseURL,
-      connectTimeout: const Duration(seconds: 5),
-      receiveTimeout: const Duration(seconds: 3),
-      headers: {'Content-Type': 'application/json'},
-    ));
-    
+
+  Cocobase(CocobaseConfig config) : baseURL = BASEURL, apiKey = config.apiKey {
+    _dio = Dio(
+      BaseOptions(
+        baseUrl: baseURL,
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 3),
+        headers: {'Content-Type': 'application/json'},
+      ),
+    );
+
     // Add interceptors for auth and API key
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) {
-        if (apiKey != null) {
-          options.headers['x-api-key'] = apiKey;
-        }
-        if (_token != null) {
-          options.headers['Authorization'] = 'Bearer $_token';
-        }
-        handler.next(options);
-      },
-    ));
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          if (apiKey != null) {
+            options.headers['x-api-key'] = apiKey;
+          }
+          if (_token != null) {
+            options.headers['Authorization'] = 'Bearer $_token';
+          }
+          handler.next(options);
+        },
+      ),
+    );
   }
 
   Future<T> _request<T>(
@@ -195,10 +200,10 @@ class Cocobase {
     bool useDataKey = true,
   }) async {
     final data = useDataKey ? {'data': body} : body;
-    
+
     try {
       Response response;
-      
+
       switch (method.toUpperCase()) {
         case 'GET':
           response = await _dio.get(path);
@@ -215,7 +220,7 @@ class Cocobase {
         default:
           throw Exception('Unsupported HTTP method: $method');
       }
-      
+
       return response.data as T;
     } on DioException catch (e) {
       final errorMessage = {
@@ -225,13 +230,31 @@ class Cocobase {
         'error': e.response?.data ?? e.message,
         'suggestions': _getErrorSuggestion(e.response?.statusCode ?? 0, method),
       };
-      
+
       throw Exception('Request failed:\n${jsonEncode(errorMessage)}');
     } catch (error) {
-      throw Exception('Unexpected error during $method request to $baseURL$path: $error');
+      throw Exception(
+        'Unexpected error during $method request to $baseURL$path: $error',
+      );
     }
   }
-  
+
+  Future<String> uploadFileFromPath({
+    required String filepath,
+    String? fileName,
+  }) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filepath, filename: fileName),
+    });
+    final response = await _request(
+      'POST',
+      "/collections/file",
+      body: formData,
+    );
+
+    return response['url'];
+  }
+
   String _getErrorSuggestion(int status, String method) {
     switch (status) {
       case 401:
@@ -248,7 +271,7 @@ class Cocobase {
         return 'Check the API documentation and verify your request format';
     }
   }
-  
+
   // Fetch a single document
   Future<Document<T>> getDocument<T>(String collection, String docId) async {
     final response = await _request<Map<String, dynamic>>(
@@ -257,7 +280,7 @@ class Cocobase {
     );
     return Document<T>.fromJson(response);
   }
-  
+
   // Create a new document
   Future<Document<T>> createDocument<T>(String collection, T data) async {
     final response = await _request<Map<String, dynamic>>(
@@ -267,7 +290,7 @@ class Cocobase {
     );
     return Document<T>.fromJson(response);
   }
-  
+
   // Update a document
   Future<Document<T>> updateDocument<T>(
     String collection,
@@ -281,29 +304,36 @@ class Cocobase {
     );
     return Document<T>.fromJson(response);
   }
-  
+
   // Delete a document
-  Future<Map<String, bool>> deleteDocument(String collection, String docId) async {
+  Future<Map<String, bool>> deleteDocument(
+    String collection,
+    String docId,
+  ) async {
     return await _request<Map<String, bool>>(
       'DELETE',
       '/collections/$collection/documents/$docId',
     );
   }
-  
+
   // List documents
-  Future<List<Document<T>>> listDocuments<T>(String collection, {Query? query}) async {
+  Future<List<Document<T>>> listDocuments<T>(
+    String collection, {
+    Query? query,
+  }) async {
     final queryStr = buildFilterQuery(query);
-    final path = '/collections/$collection/documents${queryStr.isNotEmpty ? '?$queryStr' : ''}';
-    
+    final path =
+        '/collections/$collection/documents${queryStr.isNotEmpty ? '?$queryStr' : ''}';
+
     final response = await _request<List<dynamic>>('GET', path);
     return response.map((json) => Document<T>.fromJson(json)).toList();
   }
-  
+
   // Authentication features
   Future<void> initAuth() async {
     final token = await getFromLocalStorage('cocobase-token');
     final userStr = await getFromLocalStorage('cocobase-user');
-    
+
     if (token != null) {
       _token = token;
       if (userStr != null) {
@@ -316,12 +346,12 @@ class Cocobase {
       _token = null;
     }
   }
-  
+
   Future<void> setToken(String token) async {
     _token = token;
     await setToLocalStorage('cocobase-token', token);
   }
-  
+
   Future<void> login(String email, String password) async {
     final response = await _request<Map<String, dynamic>>(
       'POST',
@@ -329,50 +359,57 @@ class Cocobase {
       body: {'email': email, 'password': password},
       useDataKey: false,
     );
-    
+
     final tokenResponse = TokenResponse.fromJson(response);
     _token = tokenResponse.accessToken;
     await setToken(_token!);
     user = await getCurrentUser();
   }
-  
-  Future<void> register(String email, String password, {Map<String, dynamic>? data}) async {
+
+  Future<void> register(
+    String email,
+    String password, {
+    Map<String, dynamic>? data,
+  }) async {
     final response = await _request<Map<String, dynamic>>(
       'POST',
       '/auth-collections/signup',
       body: {'email': email, 'password': password, 'data': data},
       useDataKey: false,
     );
-    
+
     final tokenResponse = TokenResponse.fromJson(response);
     _token = tokenResponse.accessToken;
     await setToken(_token!);
     await getCurrentUser();
   }
-  
+
   void logout() {
     _token = null;
   }
-  
+
   bool isAuthenticated() {
     return _token != null;
   }
-  
+
   Future<AppUser> getCurrentUser() async {
     if (_token == null) {
       throw Exception('User is not authenticated');
     }
-    
-    final response = await _request<Map<String, dynamic>>('GET', '/auth-collections/user');
+
+    final response = await _request<Map<String, dynamic>>(
+      'GET',
+      '/auth-collections/user',
+    );
     if (response.isEmpty) {
       throw Exception('Failed to fetch current user');
     }
-    
+
     user = AppUser.fromJson(response);
     await setToLocalStorage('cocobase-user', jsonEncode(user!.toJson()));
     return user!;
   }
-  
+
   Future<AppUser> updateUser({
     Map<String, dynamic>? data,
     String? email,
@@ -381,26 +418,26 @@ class Cocobase {
     if (_token == null) {
       throw Exception('User is not authenticated');
     }
-    
+
     final Map<String, dynamic> body = {};
     if (data != null) {
       body['data'] = mergeUserData(user?.data ?? {}, data);
     }
     if (email != null) body['email'] = email;
     if (password != null) body['password'] = password;
-    
+
     final response = await _request<Map<String, dynamic>>(
       'PATCH',
       '/auth-collections/user',
       body: body,
       useDataKey: false,
     );
-    
+
     user = AppUser.fromJson(response);
     await setToLocalStorage('cocobase-user', jsonEncode(user!.toJson()));
     return user!;
   }
-  
+
   Connection watchCollection(
     String collection,
     Function(Map<String, dynamic>) callback, {
@@ -408,18 +445,16 @@ class Cocobase {
     Function()? onOpen,
     Function()? onError,
   }) {
-    final wsUrl = '${baseURL.replaceAll('http', 'ws')}/realtime/collections/$collection';
+    final wsUrl =
+        '${baseURL.replaceAll('http', 'ws')}/realtime/collections/$collection';
     final channel = WebSocketChannel.connect(Uri.parse(wsUrl));
-    
+
     bool isClosed = false;
-    
+
     channel.stream.listen(
       (message) {
         final data = jsonDecode(message);
-        callback({
-          'event': data['event'],
-          'data': data['data'],
-        });
+        callback({'event': data['event'], 'data': data['data']});
       },
       onError: (error) {
         if (onError != null) onError();
@@ -428,12 +463,12 @@ class Cocobase {
         isClosed = true;
       },
     );
-    
+
     // Send API key after connection
     channel.sink.add(jsonEncode({'api_key': apiKey}));
-    
+
     if (onOpen != null) onOpen();
-    
+
     return Connection(
       socket: channel,
       name: connectionName ?? 'watch-$collection',
@@ -446,7 +481,7 @@ class Cocobase {
       },
     );
   }
-  
+
   void closeConnection(Connection connection) {
     connection.close();
   }

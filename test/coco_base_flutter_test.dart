@@ -1,12 +1,18 @@
-// import 'package:flutter_test/flutter_test.dart';
+import "package:coco_base_flutter/coco_base_flutter.dart";
 
-// import 'package:coco_base_flutter/coco_base_flutter.dart';
+void main() async {
+  // Just a placeholder test file to ensure the package is working
 
-// void main() {
-//   // test('adds one to input values', () {
-//   //   final calculator = Calculator();
-//   //   expect(calculator.addOne(2), 3);
-//   //   expect(calculator.addOne(-7), -6);
-//   //   expect(calculator.addOne(0), 1);
-//   // });
-// }
+  final config = CocobaseConfig(
+    baseUrl: "http://127.0.0.1:8000",
+    apiKey: "",
+  );
+  final db = Cocobase(config);
+
+  final investmentCount = await db.listDocuments(
+    "investment_batches",
+    queryBuilder: QueryBuilder().where("status", "COMPLETED"),
+  );
+
+  print("Investment count: ${investmentCount[0].data}");
+}

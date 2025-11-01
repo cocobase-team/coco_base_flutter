@@ -1,6 +1,6 @@
 name: coco_base_flutter
 description: "The official Dart SDK for CocoBase"
-version: 0.1.0
+version: 1.0.0
 homepage: https://github.com/lordace-coder/coco_base_flutter
 repository: https://github.com/lordace-coder/coco_base_flutter
 issue_tracker: https://github.com/lordace-coder/coco_base_flutter/issues
@@ -17,7 +17,6 @@ dependencies:
 
   dio: ^5.2.1
   web_socket_channel: ^2.4.0
-  shared_preferences: ^2.0.18
 
 dev_dependencies:
   flutter_test:

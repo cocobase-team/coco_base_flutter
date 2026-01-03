@@ -129,7 +129,7 @@ void main() async {
   final cocobase = Cocobase(
     CocobaseConfig(
       apiKey: 'your-api-key',
-      baseUrl: 'https://api.cocobase.com', // Optional
+      baseUrl: 'https://api.cocobase.buzz', // Optional
     ),
   );
 

@@ -70,7 +70,7 @@
 
 ### 9. **Configuration**
 
-- ✅ **Optional base URL** parameter (defaults to `https://api.cocobase.com`)
+- ✅ **Optional base URL** parameter (defaults to `https://api.cocobase.buzz`)
 - ✅ Custom API key
 - ✅ Configurable timeouts
 

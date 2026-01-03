@@ -33,7 +33,7 @@ import 'package:coco_base_flutter/coco_base_flutter.dart';
 final cocobase = Cocobase(
   CocobaseConfig(
     apiKey: 'your-api-key',
-    baseUrl: 'https://api.cocobase.com', // Optional
+    baseUrl: 'https://api.cocobase.buzz', // Optional
   ),
 );
 ```
@@ -475,4 +475,4 @@ await cocobase.getDocument('collection', 'doc-id',
 For issues or questions:
 
 - GitHub: [lordace-coder/coco_base_flutter](https://github.com/lordace-coder/coco_base_flutter)
-- API Docs: [https://docs.cocobase.com](https://docs.cocobase.com)
+- API Docs: [https://docs.cocobase.buzz](https://docs.cocobase.buzz)

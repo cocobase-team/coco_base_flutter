@@ -639,7 +639,7 @@ class Cocobase {
       if (tokenResponse.accessToken.isNotEmpty) {
         _token = tokenResponse.accessToken;
         await setToken(_token!);
-        
+
         // Fetch user info after successful login
         try {
           user = await getCurrentUser();
@@ -671,7 +671,7 @@ class Cocobase {
       final tokenResponse = TokenResponse.fromJson(response);
       _token = tokenResponse.accessToken;
       await setToken(_token!);
-      
+
       // Fetch user info after successful registration
       try {
         await getCurrentUser();

@@ -2,9 +2,7 @@ import "package:coco_base_flutter/coco_base_flutter.dart";
 import "package:dio/dio.dart";
 
 void main() async {
-  final config = CocobaseConfig(
-    apiKey: "YOUR_API_KEY_HERE",
-  );
+  final config = CocobaseConfig(apiKey: "YOUR_API_KEY_HERE");
   final db = Cocobase(config);
 
   // ============================================================================

@@ -20,7 +20,8 @@ Secure your app with user authentication, registration, and profile management.
 CocoBase provides built-in authentication with:
 
 - Email/password r}
-```
+
+`````
 
 ### API Key Management
 
@@ -41,17 +42,19 @@ class AppConfig {
 
 ### Architecture
 
-```
+`````
+
 User → Register/Login → CocoBase API
-                              ↓
-                         Verify Credentials
-                              ↓
-                         Generate JWT Token
-                              ↓
-                    Store Token Securely
-                              ↓
-                 Use Token for API Requests
-```
+↓
+Verify Credentials
+↓
+Generate JWT Token
+↓
+Store Token Securely
+↓
+Use Token for API Requests
+
+````
 
 ---
 
@@ -68,7 +71,7 @@ final result = await db.register(
 print('Registered successfully!');
 print('User ID: ${result.userId}');
 print('Token: ${result.token}');
-```
+````
 
 ### Registration Response
 
@@ -604,7 +607,7 @@ class SecureAuthStore {
 
 ```dart
 // ❌ Bad - hardcoded key
-const apiKey = 'VTXjd5f7SRhfyqpKKenvSNCYzOSOaVBj75pYBQ8Z';
+const apiKey = 'YOUR_API_KEY_HERE';
 
 // ✅ Good - from environment
 const apiKey = String.fromEnvironment('COCOBASE_API_KEY');

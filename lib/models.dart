@@ -1,6 +1,42 @@
 /// Models for CocoBase API responses
 library;
 
+/// Base class for auto-convertible models
+///
+/// Implement this to enable automatic conversion with listDocuments<T>
+///
+/// Example:
+/// ```dart
+/// class Book extends CocobaseModel<Book> {
+///   final String title;
+///   final String content;
+///
+///   Book({required this.title, required this.content});
+///
+///   @override
+///   factory Book.fromJson(Map<String, dynamic> json) {
+///     return Book(
+///       title: json['title'],
+///       content: json['content'],
+///     );
+///   }
+/// }
+///
+/// // Now you can use it without specifying converter:
+/// final books = await db.listDocuments<Book>("books");
+/// ```
+abstract class CocobaseModel<T> {
+  /// Factory constructor that subclasses must implement
+  ///
+  /// This allows automatic conversion from JSON without needing
+  /// to pass the converter function explicitly
+  static T fromJson<T>(Map<String, dynamic> json) {
+    throw UnimplementedError(
+      'Subclasses of CocobaseModel must implement fromJson',
+    );
+  }
+}
+
 class Collection {
   final String id;
   final String name;
@@ -18,6 +54,42 @@ class Collection {
 
   Map<String, dynamic> toJson() {
     return {'id': id, 'name': name, 'created_at': createdAt.toIso8601String()};
+  }
+}
+
+/// Registry for automatic model converters
+///
+/// Register your models so listDocuments<T> can auto-convert without needing
+/// to pass the converter function each time.
+///
+/// Example:
+/// ```dart
+/// CocobaseConverters.register<Book>(Book.fromJson);
+///
+/// // Now this works without the converter parameter:
+/// final books = await db.listDocuments<Book>("books");
+/// ```
+class CocobaseConverters {
+  static final Map<Type, Function> _converters = {};
+
+  /// Register a converter for a model type
+  static void register<T>(T Function(Map<String, dynamic>) converter) {
+    _converters[T] = converter;
+  }
+
+  /// Get a converter for a model type
+  static T Function(Map<String, dynamic>)? get<T>() {
+    return _converters[T] as T Function(Map<String, dynamic>)?;
+  }
+
+  /// Check if a converter is registered
+  static bool hasConverter<T>() {
+    return _converters.containsKey(T);
+  }
+
+  /// Clear all registered converters
+  static void clear() {
+    _converters.clear();
   }
 }
 
@@ -59,6 +131,11 @@ class Document<T> {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
+  }
+
+  @override
+  String toString() {
+    return 'Document(id: $id, collection: $collection, data: $data, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 }
 

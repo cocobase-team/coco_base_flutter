@@ -210,10 +210,32 @@ class Cocobase {
   // ============================================================================
 
   /// Fetch a single document with optional relationship population
+  ///
+  /// [T] is the type of data in the document
+  /// [converter] is optional - use it to convert Map data to your custom type.
+  /// If not provided, tries to use a registered converter from [CocobaseConverters].
+  ///
+  /// Example 1 - With explicit converter:
+  /// ```dart
+  /// final book = await db.getDocument<Book>("books", "doc-id",
+  ///   converter: Book.fromJson);
+  /// print(book.data.title);  // Type-safe!
+  /// ```
+  ///
+  /// Example 2 - With auto-registered converter (recommended):
+  /// ```dart
+  /// // Register once (in main or app initialization)
+  /// CocobaseConverters.register<Book>(Book.fromJson);
+  ///
+  /// // Use without passing converter everywhere
+  /// final book = await db.getDocument<Book>("books", "doc-id");
+  /// print(book.data.title);  // Type-safe!
+  /// ```
   Future<Document<T>> getDocument<T>(
     String collection,
     String docId, {
     List<String>? populate,
+    T Function(Map<String, dynamic>)? converter,
   }) async {
     String path = '/collections/$collection/documents/$docId';
 
@@ -223,7 +245,29 @@ class Cocobase {
     }
 
     final response = await _request<Map<String, dynamic>>('GET', path);
-    return Document<T>.fromJson(response);
+    final doc = Document<Map<String, dynamic>>.fromJson(response);
+
+    // Try to get converter: explicit parameter, then registry, then return as-is
+    final finalConverter = converter ?? CocobaseConverters.get<T>();
+
+    if (finalConverter == null) {
+      return Document<T>(
+        id: doc.id,
+        collection: doc.collection,
+        data: doc.data as T,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
+      );
+    }
+
+    // If converter found (explicit or from registry), convert the data
+    return Document<T>(
+      id: doc.id,
+      collection: doc.collection,
+      data: finalConverter(doc.data),
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    );
   }
 
   /// Create a new document
@@ -261,19 +305,87 @@ class Cocobase {
     );
   }
 
-  /// List documents with QueryBuilder
+  /// List documents with optional QueryBuilder or simple filter map
+  ///
+  /// [T] is the type of data in each document
+  /// [queryBuilder] - Use for complex queries with multiple operators
+  /// [filters] - Simple alternative: pass filters as a Map (uses __gt, __lt, __contains, etc.)
+  /// [converter] is optional - use it to convert Map data to your custom type
+  ///
+  /// Example 1: No filters (returns all documents)
+  /// ```dart
+  /// final docs = await db.listDocuments("books");
+  /// print(docs[0].data['title']);
+  /// ```
+  ///
+  /// Example 2: Simple filters as Map (easiest for beginners)
+  /// ```dart
+  /// final books = await db.listDocuments<Book>("books",
+  ///   filters: {'status': 'published', 'rating__gt': 4});
+  /// print(books[0].data.title);
+  /// ```
+  ///
+  /// Example 3: QueryBuilder for complex queries
+  /// ```dart
+  /// final books = await db.listDocuments<Book>("books",
+  ///   queryBuilder: QueryBuilder()
+  ///     .where('status', 'published')
+  ///     .whereGreaterThan('rating', 4)
+  ///     .limit(10));
+  /// ```
+  ///
+  /// Example 4: With auto-registered converter (recommended)
+  /// ```dart
+  /// CocobaseConverters.register<Book>(Book.fromJson);
+  /// final books = await db.listDocuments<Book>("books",
+  ///   filters: {'status': 'published'});
+  /// print(books[0].data.title);  // Type-safe!
+  /// ```
   Future<List<Document<T>>> listDocuments<T>(
     String collection, {
     QueryBuilder? queryBuilder,
+    Map<String, dynamic>? filters,
+    T Function(Map<String, dynamic>)? converter,
   }) async {
-    final queryStr = queryBuilder?.build() ?? '';
+    // If filters map is provided, convert to QueryBuilder
+    final finalBuilder = filters != null
+        ? QueryBuilder().whereAll(filters)
+        : queryBuilder;
+
+    final queryStr = finalBuilder?.build() ?? '';
 
     final path =
         '/collections/$collection/documents'
         '${queryStr.isNotEmpty ? '?$queryStr' : ''}';
 
     final response = await _request<List<dynamic>>('GET', path);
-    return response.map((json) => Document<T>.fromJson(json)).toList();
+
+    return response.map((json) {
+      final doc = Document<Map<String, dynamic>>.fromJson(json);
+
+      // Try to get converter from parameter, then from registry
+      final finalConverter = converter ?? CocobaseConverters.get<T>();
+
+      // If no converter provided or found, return as-is with dynamic data
+      if (finalConverter == null) {
+        return Document<T>(
+          id: doc.id,
+          collection: doc.collection,
+          data: doc.data as T,
+          createdAt: doc.createdAt,
+          updatedAt: doc.updatedAt,
+        );
+      }
+
+      // Convert the data using the converter
+      return Document<T>(
+        id: doc.id,
+        collection: doc.collection,
+        data: finalConverter(doc.data),
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
+      );
+    }).toList();
   }
 
   // ============================================================================
@@ -327,11 +439,37 @@ class Cocobase {
   // ============================================================================
 
   /// Count documents matching the query
+  ///
+  /// [queryBuilder] - For complex queries with multiple operators
+  /// [filters] - Simple alternative: pass filters as a Map
+  ///
+  /// Example 1: Count all documents
+  /// ```dart
+  /// final count = await db.countDocuments("books");
+  /// ```
+  ///
+  /// Example 2: Count with filters map
+  /// ```dart
+  /// final count = await db.countDocuments("books",
+  ///   filters: {'status': 'published', 'rating__gt': 4});
+  /// ```
+  ///
+  /// Example 3: Count with QueryBuilder
+  /// ```dart
+  /// final count = await db.countDocuments("books",
+  ///   queryBuilder: QueryBuilder().where('status', 'published'));
+  /// ```
   Future<CountResponse> countDocuments(
     String collection, {
     QueryBuilder? queryBuilder,
+    Map<String, dynamic>? filters,
   }) async {
-    final queryStr = queryBuilder?.build() ?? '';
+    // If filters map is provided, convert to QueryBuilder
+    final finalBuilder = filters != null
+        ? QueryBuilder().whereAll(filters)
+        : queryBuilder;
+
+    final queryStr = finalBuilder?.build() ?? '';
 
     final path =
         '/collections/$collection/query/documents/count'
@@ -342,16 +480,44 @@ class Cocobase {
   }
 
   /// Aggregate documents (sum, avg, min, max)
+  ///
+  /// [field] - The field to aggregate on
+  /// [operation] - One of: 'sum', 'avg', 'min', 'max'
+  /// [queryBuilder] - For complex filtering
+  /// [filters] - Simple alternative: pass filters as a Map
+  ///
+  /// Example 1: Sum with filters map
+  /// ```dart
+  /// final result = await db.aggregateDocuments("books",
+  ///   field: 'price',
+  ///   operation: 'sum',
+  ///   filters: {'status': 'published'});
+  /// print(result.value);  // Total price
+  /// ```
+  ///
+  /// Example 2: Average with QueryBuilder
+  /// ```dart
+  /// final result = await db.aggregateDocuments("books",
+  ///   field: 'rating',
+  ///   operation: 'avg',
+  ///   queryBuilder: QueryBuilder().whereGreaterThan('votes', 10));
+  /// ```
   Future<AggregateResponse> aggregateDocuments(
     String collection, {
     required String field,
     required String operation,
     QueryBuilder? queryBuilder,
+    Map<String, dynamic>? filters,
   }) async {
+    // If filters map is provided, convert to QueryBuilder
+    final finalBuilder = filters != null
+        ? QueryBuilder().whereAll(filters)
+        : queryBuilder;
+
     String queryStr = 'field=$field&operation=$operation';
 
-    if (queryBuilder != null) {
-      final builderQuery = queryBuilder.build();
+    if (finalBuilder != null) {
+      final builderQuery = finalBuilder.build();
       if (builderQuery.isNotEmpty) {
         queryStr = '$queryStr&$builderQuery';
       }
@@ -363,15 +529,39 @@ class Cocobase {
   }
 
   /// Group documents by field value
+  ///
+  /// [field] - The field to group by
+  /// [queryBuilder] - For complex filtering
+  /// [filters] - Simple alternative: pass filters as a Map
+  ///
+  /// Example 1: Group with filters map
+  /// ```dart
+  /// final result = await db.groupByField("orders",
+  ///   field: 'status',
+  ///   filters: {'year': 2024});
+  /// ```
+  ///
+  /// Example 2: Group with QueryBuilder
+  /// ```dart
+  /// final result = await db.groupByField("orders",
+  ///   field: 'status',
+  ///   queryBuilder: QueryBuilder().whereGreaterThan('total', 100));
+  /// ```
   Future<GroupByResponse> groupByField(
     String collection, {
     required String field,
     QueryBuilder? queryBuilder,
+    Map<String, dynamic>? filters,
   }) async {
+    // If filters map is provided, convert to QueryBuilder
+    final finalBuilder = filters != null
+        ? QueryBuilder().whereAll(filters)
+        : queryBuilder;
+
     String queryStr = 'field=$field';
 
-    if (queryBuilder != null) {
-      final builderQuery = queryBuilder.build();
+    if (finalBuilder != null) {
+      final builderQuery = finalBuilder.build();
       if (builderQuery.isNotEmpty) {
         queryStr = '$queryStr&$builderQuery';
       }

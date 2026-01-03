@@ -627,17 +627,31 @@ class Cocobase {
 
   /// Login with email and password
   Future<void> login(String email, String password) async {
-    final response = await _request<Map<String, dynamic>>(
-      'POST',
-      '/auth-collections/login',
-      body: {'email': email, 'password': password},
-      useDataKey: false,
-    );
+    try {
+      final response = await _request<Map<String, dynamic>>(
+        'POST',
+        '/auth-collections/login',
+        body: {'email': email, 'password': password},
+        useDataKey: false,
+      );
 
-    final tokenResponse = TokenResponse.fromJson(response);
-    _token = tokenResponse.accessToken;
-    await setToken(_token!);
-    user = await getCurrentUser();
+      final tokenResponse = TokenResponse.fromJson(response);
+      if (tokenResponse.accessToken.isNotEmpty) {
+        _token = tokenResponse.accessToken;
+        await setToken(_token!);
+        
+        // Fetch user info after successful login
+        try {
+          user = await getCurrentUser();
+        } catch (e) {
+          // If getCurrentUser fails, continue anyway - user is logged in
+        }
+      } else {
+        throw Exception('No access token received from server');
+      }
+    } catch (e) {
+      rethrow;
+    }
   }
 
   /// Register a new user
@@ -646,17 +660,27 @@ class Cocobase {
     String password, {
     Map<String, dynamic>? data,
   }) async {
-    final response = await _request<Map<String, dynamic>>(
-      'POST',
-      '/auth-collections/signup',
-      body: {'email': email, 'password': password, 'data': data},
-      useDataKey: false,
-    );
+    try {
+      final response = await _request<Map<String, dynamic>>(
+        'POST',
+        '/auth-collections/signup',
+        body: {'email': email, 'password': password, 'data': data},
+        useDataKey: false,
+      );
 
-    final tokenResponse = TokenResponse.fromJson(response);
-    _token = tokenResponse.accessToken;
-    await setToken(_token!);
-    await getCurrentUser();
+      final tokenResponse = TokenResponse.fromJson(response);
+      _token = tokenResponse.accessToken;
+      await setToken(_token!);
+      
+      // Fetch user info after successful registration
+      try {
+        await getCurrentUser();
+      } catch (e) {
+        // If getCurrentUser fails, continue anyway - user is registered
+      }
+    } catch (e) {
+      rethrow;
+    }
   }
 
   /// Logout the current user
@@ -719,13 +743,51 @@ class Cocobase {
   // REALTIME FEATURES
   // ============================================================================
 
-  /// Watch a collection for real-time updates
+  /// Watch a collection for real-time updates via WebSocket
+  ///
+  /// Establishes a persistent WebSocket connection to receive live events
+  /// when documents in the collection are created, updated, or deleted.
+  ///
+  /// **Parameters:**
+  /// - `collection` - Name of the collection to watch (required)
+  /// - `onEvent` - Callback function called when events occur (required)
+  ///   - Receives `{'event': 'string', 'data': Map<String, dynamic>}`
+  /// - `connectionName` - Optional name for this connection (for debugging)
+  /// - `onConnected` - Optional callback when connection established
+  /// - `onConnectionError` - Optional callback when connection fails
+  ///
+  /// **Returns:** `Connection` object - save this to close the connection later
+  ///
+  /// **Example:**
+  /// ```dart
+  /// // Simple usage
+  /// final conn = db.watchCollection("books", (event) {
+  ///   print('Event: ${event['event']}');
+  ///   print('Data: ${event['data']}');
+  /// });
+  ///
+  /// // With all options
+  /// final conn = db.watchCollection(
+  ///   "books",
+  ///   (event) {
+  ///     if (event['event'] == 'create') {
+  ///       print('New book: ${event['data']}');
+  ///     }
+  ///   },
+  ///   connectionName: 'books-watcher',
+  ///   onConnected: () => print('✅ Connected'),
+  ///   onConnectionError: () => print('❌ Error'),
+  /// );
+  ///
+  /// // Close when done
+  /// db.closeConnection(conn);
+  /// ```
   Connection watchCollection(
     String collection,
-    Function(Map<String, dynamic>) callback, {
+    Function(Map<String, dynamic>) onEvent, {
     String? connectionName,
-    Function()? onOpen,
-    Function()? onError,
+    Function()? onConnected,
+    Function()? onConnectionError,
   }) {
     final wsUrl =
         '${baseURL.replaceAll('http', 'ws')}/realtime/collections/$collection';
@@ -736,10 +798,10 @@ class Cocobase {
     channel.stream.listen(
       (message) {
         final data = jsonDecode(message);
-        callback({'event': data['event'], 'data': data['data']});
+        onEvent({'event': data['event'], 'data': data['data']});
       },
       onError: (error) {
-        if (onError != null) onError();
+        if (onConnectionError != null) onConnectionError();
       },
       onDone: () {
         isClosed = true;
@@ -749,7 +811,7 @@ class Cocobase {
     // Send API key after connection
     channel.sink.add(jsonEncode({'api_key': apiKey}));
 
-    if (onOpen != null) onOpen();
+    if (onConnected != null) onConnected();
 
     return Connection(
       socket: channel,
@@ -765,6 +827,17 @@ class Cocobase {
   }
 
   /// Close a real-time connection
+  ///
+  /// Call this when you're done watching a collection to clean up
+  /// the WebSocket connection and free resources.
+  ///
+  /// **Example:**
+  /// ```dart
+  /// final conn = await db.watchCollection("books", (event) { ... });
+  ///
+  /// // Later, when done:
+  /// db.closeConnection(conn);
+  /// ```
   void closeConnection(Connection connection) {
     connection.close();
   }

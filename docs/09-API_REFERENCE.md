@@ -446,46 +446,51 @@ Future<void> logout()
 #### watchCollection
 
 ```dart
-Future<void> watchCollection<T>(
+Connection watchCollection(
   String collection,
-  Function(WatchEvent) onEvent, {
-  QueryBuilder? queryBuilder,
-  Map<String, dynamic>? filters,
-  T Function(Map<String, dynamic>)? converter,
+  Function(Map<String, dynamic>) onEvent, {
+  String? connectionName,
+  Function()? onConnected,
+  Function()? onConnectionError,
 })
 ```
 
 **Parameters:**
 
-- `collection` - Collection to watch (required)
-- `onEvent` - Callback for events (required)
-- `queryBuilder` - Filter with complex query (optional)
-- `filters` - Filter with simple map (optional)
-- `converter` - Type converter (optional)
+- `collection` - Collection name to watch (required)
+- `onEvent` - Callback function for events (required)
+- `connectionName` - Optional name for this connection
+- `onConnected` - Optional callback when connected
+- `onConnectionError` - Optional callback on error
 
 **Example:**
 
 ```dart
-await db.watchCollection<Book>(
+Connection conn = db.watchCollection(
   "books",
   (event) {
-    print('Event: ${event.type}');
-    print('Data: ${event.data}');
+    print('Event: ${event['event']}');
   },
-  filters: {'status': 'published'},
-  converter: Book.fromJson,
 );
+db.closeConnection(conn);
 ```
-
----
 
 #### closeConnection
 
 ```dart
-void closeConnection()
+void closeConnection(Connection connection)
 ```
 
----
+**Parameters:**
+
+- `connection` - The Connection object from watchCollection
+
+**Example:**
+
+```dart
+final conn = db.watchCollection("books", (event) { ... });
+db.closeConnection(conn);
+```
 
 ## CocobaseConfig
 

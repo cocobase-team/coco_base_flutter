@@ -47,42 +47,58 @@ App                    CocoBase Server
 
 ```dart
 // Watch a collection for changes
-await db.watchCollection(
-  "books",
-  (event) {
-    print('Event type: ${event.type}');
-    print('Document: ${event.data}');
+Connection conn = db.watchCollection(
+  "books",              // Collection name
+  (event) {            // onEvent callback
+    print('Event: ${event['event']}');
+    print('Data: ${event['data']}');
   },
 );
 
-// Connection established and listening...
+// Close when done
+db.closeConnection(conn);
 ```
 
-### With Query Filter
+### With Callbacks
 
 ```dart
-// Watch only published books
-await db.watchCollection(
+// Add callbacks for connection events
+Connection conn = db.watchCollection(
   "books",
   (event) {
-    print('Published book event: ${event.data}');
+    print('Event: ${event['event']}');
+    print('Data: ${event['data']}');
   },
-  queryBuilder: QueryBuilder().where('status', 'published'),
+  connectionName: 'books-watcher',
+  onConnected: () => print('✅ Connected'),
+  onConnectionError: () => print('❌ Error'),
 );
+
+// Close when done
+db.closeConnection(conn);
 ```
 
-### With Type Safety
+### Handling Events
 
 ```dart
-// Watch books with full type safety
-await db.watchCollection(
+Connection conn = db.watchCollection(
   "books",
   (event) {
-    // event.data is already a Document<Book>
-    print('Book changed: ${event.data.data.title}');
+    final eventType = event['event'];    // 'create', 'update', or 'delete'
+    final data = event['data'];          // The changed document
+    
+    switch (eventType) {
+      case 'create':
+        print('📝 New book: ${data['title']}');
+        break;
+      case 'update':
+        print('✏️ Updated: ${data['title']}');
+        break;
+      case 'delete':
+        print('🗑️ Deleted');
+        break;
+    }
   },
-  queryBuilder: QueryBuilder().where('status', 'published'),
-  converter: Book.fromJson,
 );
 ```
 

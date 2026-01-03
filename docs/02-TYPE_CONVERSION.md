@@ -555,6 +555,104 @@ final title = books[0].data.title;
 
 ---
 
+## Creating Documents with Type Safety
+
+When you create new documents, your model class **must have a `toJson()` method** to serialize the data back to a Map for the API.
+
+### The `toJson()` Method
+
+```dart
+class Book {
+  final String title;
+  final String author;
+  final double price;
+
+  Book({
+    required this.title,
+    required this.author,
+    required this.price,
+  });
+
+  // For reading data from API
+  factory Book.fromJson(Map<String, dynamic> json) {
+    return Book(
+      title: json['title'] as String,
+      author: json['author'] as String,
+      price: (json['price'] as num).toDouble(),
+    );
+  }
+
+  // For creating/updating documents - REQUIRED for createDocument()
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'author': author,
+      'price': price,
+    };
+  }
+}
+```
+
+### Creating a Typed Document
+
+```dart
+// Create an instance of your model
+final newBook = Book(
+  title: 'Clean Code',
+  author: 'Robert Martin',
+  price: 45.99,
+);
+
+// Pass it to createDocument - toJson() is called automatically
+final created = await db.createDocument<Book>("books", newBook);
+
+// Result contains the new document ID from the server
+print('Created with ID: ${created.id}');
+print('Title: ${created.data.title}');
+```
+
+**How it works:**
+
+1. You create a `Book` instance with your data
+2. `createDocument<Book>()` calls `toJson()` automatically to serialize it
+3. The API receives the JSON and stores it
+4. The response is converted back to a `Book` instance using `fromJson()`
+5. You get a `Document<Book>` with the server-assigned ID
+
+### Batch Creating Documents
+
+When batch creating, each item's `toJson()` is also called:
+
+```dart
+final books = [
+  Book(title: 'Book 1', author: 'Author 1', price: 29.99),
+  Book(title: 'Book 2', author: 'Author 2', price: 39.99),
+];
+
+final results = await db.batchCreateDocuments<Book>("books", books);
+
+for (var doc in results.documents) {
+  print('Created: ${doc.id} - ${doc.data.title}');
+}
+```
+
+### Updating with Type Safety
+
+```dart
+// Update a single document
+final updateData = {'price': 24.99, 'status': 'sale'};
+await db.updateDocument("books", "doc-id", updateData);
+
+// Or update multiple
+final updates = [
+  {'id': 'doc-1', 'price': 24.99},
+  {'id': 'doc-2', 'price': 34.99},
+];
+await db.batchUpdateDocuments("books", updates);
+```
+
+---
+
 ## Troubleshooting
 
 ### Issue: "type '\_InternalLinkedHashMap<String, dynamic>' is not a subtype"
@@ -602,12 +700,13 @@ class Book {
 
 ## Best Practices
 
-1. **Always define `fromJson()` factory** - Required for type conversion
-2. **Type cast in `fromJson()`** - Use `as Type` for safety
-3. **Handle optional fields** - Use nullable types `String?`
-4. **Register in `main()`** - Register converters once at app start
-5. **Use `toJson()` for updates** - Convert back when creating/updating
-6. **Test your converters** - Verify JSON parsing works as expected
+1. **Always define `fromJson()` factory** - Required for reading/converting documents from API
+2. **Always define `toJson()` method** - Required when using `createDocument()` and `updateDocument()` with typed instances
+3. **Type cast in `fromJson()`** - Use `as Type` for safety: `json['age'] as int`
+4. **Handle optional fields** - Use nullable types `String?` for optional fields
+5. **Match field names** - Ensure `toJson()` uses same keys as your API expects
+6. **Register in `main()`** - Register converters once at app start with `CocobaseConverters.register<T>()`
+7. **Test your converters** - Verify both `fromJson()` and `toJson()` work correctly with your data
 
 ---
 

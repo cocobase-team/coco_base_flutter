@@ -264,8 +264,8 @@ class TokenResponse {
 
   factory TokenResponse.fromJson(Map<String, dynamic> json) {
     return TokenResponse(
-      accessToken: json['access_token'],
-      tokenType: json['token_type'] ?? 'Bearer',
+      accessToken: json['access_token'] ?? json['accessToken'] ?? '',
+      tokenType: json['token_type'] ?? json['tokenType'] ?? 'Bearer',
     );
   }
 }
@@ -287,11 +287,11 @@ class AppUser {
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
     return AppUser(
-      id: json['id'],
-      email: json['email'],
+      id: json['id'] ?? json['_id'] ?? '',
+      email: json['email'] ?? '',
       data: json['data'],
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'].toString()) : DateTime.now(),
+      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at'].toString()) : DateTime.now(),
     );
   }
 

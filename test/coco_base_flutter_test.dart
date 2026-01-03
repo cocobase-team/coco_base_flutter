@@ -35,7 +35,7 @@ void main() async {
   try {
     print('📝 Registering new user...');
     await db.register(
-      'testuser${DateTime.now().millisecondsSinceEpoch}@example.com',
+      'testuser2@example.com',
       'TestPassword123!',
       data: {'name': 'Test User'},
     );
@@ -59,7 +59,7 @@ void main() async {
 
   try {
     print('🔑 Attempting login...');
-    await db.login('testuser@example.com', 'TestPassword123!');
+    await db.login('testuser2@example.com', 'TestPassword123!');
 
     print('✅ Login Successful');
     print('   Is Authenticated: ${db.isAuthenticated()}');

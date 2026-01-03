@@ -19,8 +19,23 @@ Secure your app with user authentication, registration, and profile management.
 
 CocoBase provides built-in authentication with:
 
-- Email/password registration
-- Secure login with JWT tokens
+- Email/password r}
+```
+
+### API Key Management
+
+```dart
+// ❌ Bad - hardcoded key
+const apiKey = 'YOUR_API_KEY_HERE';
+
+// ✅ Good - from environment
+const apiKey = String.fromEnvironment('COCOBASE_API_KEY');
+
+// ✅ Better - from secure config
+class AppConfig {
+  static const apiKey = 'load_from_env_or_build_config';
+}
+````ure login with JWT tokens
 - Automatic token management
 - Session persistence
 

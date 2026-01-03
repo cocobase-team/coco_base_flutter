@@ -3,7 +3,7 @@ import "package:dio/dio.dart";
 
 void main() async {
   final config = CocobaseConfig(
-    apiKey: "VTXjd5f7SRhfyqpKKenvSNCYzOSOaVBj75pYBQ8Z",
+    apiKey: "YOUR_API_KEY_HERE",
   );
   final db = Cocobase(config);
 

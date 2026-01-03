@@ -31,7 +31,7 @@ DioException: 401 Unauthorized - Invalid API key
    ```dart
    // Check your API key is correct
    final config = CocobaseConfig(
-     apiKey: "VTXjd5f7SRhfyqpKKenvSNCYzOSOaVBj75pYBQ8Z",  // Copy from dashboard
+     apiKey: "YOUR_API_KEY_HERE",  // Copy from dashboard
    );
    ```
 
